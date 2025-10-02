@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Registro de Asistencia</title>
+  <style>
+    :root {
+      --color-bg: #ffffff;
+      --color-card: #f9f9f9;
+      --color-text: #333;
+      --color-ingreso: #2ecc71;
+      --color-salida: #f39c12;
+      --color-error: #e74c3c;
+      --color-button: #333;
+      --color-button-hover: #555;
+      --radius: 8px;
+      --shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: var(--color-bg);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      position: relative;
+    }
+
+    .logo {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+    }
+
+    .logo img {
+      height: 200px;
+      border-radius: var(--radius);
+    }
+
+    .container {
+      background-color: var(--color-card);
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      text-align: center;
+      width: 300px;
+    }
+
+    h2 {
+      margin-bottom: 24px;
+      color: var(--color-text);
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 20px;
+      border: 1px solid #ccc;
+      border-radius: var(--radius);
+      font-size: 16px;
+    }
+
+    button {
+      background-color: var(--color-button);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: var(--radius);
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: var(--color-button-hover);
+    }
+
+    .mensaje {
+      margin-top: 20px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .ingreso {
+      color: var(--color-ingreso);
+    }
+
+    .salida {
+      color: var(--color-salida);
+    }
+
+    .error {
+      color: var(--color-error);
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">
+    <img src="Fondonegocio.jpeg" alt="Logo Fondonegocio">
+  </div>
+
+  <div class="container">
+    <h2>Registro de Asistencia</h2>
+    <input type="text" id="dni" placeholder="Ingresa tu DNI">
+    <button id="btnGuardar">Guardar</button>
+    <div class="mensaje" id="mensaje"></div>
+  </div>
+
+  <script>
+    const registros = {};
+    const dniInput = document.getElementById('dni');
+    const mensajeDiv = document.getElementById('mensaje');
+    const btnGuardar = document.getElementById('btnGuardar');
+
+    btnGuardar.addEventListener('click', async () => {
+      const dni = dniInput.value.trim();
+      if (!dni) {
+        alert("Por favor ingresa un DNI válido.");
+        return;
+      }
+
+      const ahora = new Date();
+      const fecha = ahora.toLocaleDateString();
+      const hora = ahora.toLocaleTimeString();
+      const clave = `${dni}-${fecha}`;
+
+      registros[clave] = (registros[clave] || 0) + 1;
+
+      let tipo = '';
+      let clase = '';
+
+      switch (registros[clave]) {
+        case 1:
+          tipo = 'Ingreso';
+          clase = 'ingreso';
+          break;
+        case 2:
+          tipo = 'Salida';
+          clase = 'salida';
+          break;
+        default:
+          tipo = 'Error: este DNI ya está registrado en el día';
+          clase = 'error';
+      }
+
+      const mensaje = registros[clave] <= 2
+        ? `Se registró el DNI ${dni} a las ${fecha} ${hora} (${tipo})`
+        : tipo;
+
+      mensajeDiv.textContent = mensaje;
+      mensajeDiv.className = `mensaje ${clase}`;
+      dniInput.value = '';
+
+      // Enviar a Google Sheets si es ingreso o salida
+      if (registros[clave] <= 2) {
+        const url = "https://script.google.com/macros/s/AKfycbz_XUr0fFGepeEW_h2DRYhXv1u4I_3xd6PCSbeURvSJVXa9GoY-KAf0FVf6j3tIIGmR/exec";
+        const formData = new FormData();
+        formData.append("fecha", fecha);
+        formData.append("hora", hora);
+        formData.append("dni", dni);
+        formData.append("tipo", tipo);
+
+        try {
+          await fetch(url, { method: "POST", body: formData });
+        } catch (error) {
+          console.error("Error al guardar en Sheets:", error);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
