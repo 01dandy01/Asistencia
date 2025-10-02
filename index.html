@@ -9,7 +9,9 @@
       --color-card: #f9f9f9;
       --color-text: #333;
       --color-ingreso: #2ecc71;
-      --color-salida: #f39c12;
+      --color-salida: #3498db;
+      --color-refrigerio-inicio: #f39c12;
+      --color-refrigerio-fin: #f1c40f;
       --color-error: #e74c3c;
       --color-button: #333;
       --color-button-hover: #555;
@@ -49,7 +51,7 @@
       border-radius: 12px;
       box-shadow: var(--shadow);
       text-align: center;
-      width: 300px;
+      width: 320px;
     }
 
     h2 {
@@ -66,20 +68,28 @@
       font-size: 16px;
     }
 
+    .botones {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
     button {
-      background-color: var(--color-button);
-      color: white;
       border: none;
-      padding: 12px 20px;
+      padding: 12px;
       border-radius: var(--radius);
       font-size: 16px;
       cursor: pointer;
       transition: background-color 0.3s;
+      color: white;
     }
 
-    button:hover {
-      background-color: var(--color-button-hover);
-    }
+    .ingreso-btn { background-color: var(--color-ingreso); }
+    .salida-btn { background-color: var(--color-salida); }
+    .refrigerio-inicio-btn { background-color: var(--color-refrigerio-inicio); }
+    .refrigerio-fin-btn { background-color: var(--color-refrigerio-fin); color: black; }
+
+    button:hover { opacity: 0.9; }
 
     .mensaje {
       margin-top: 20px;
@@ -87,17 +97,11 @@
       font-weight: 500;
     }
 
-    .ingreso {
-      color: var(--color-ingreso);
-    }
-
-    .salida {
-      color: var(--color-salida);
-    }
-
-    .error {
-      color: var(--color-error);
-    }
+    .ingreso { color: var(--color-ingreso); }
+    .salida { color: var(--color-salida); }
+    .refrigerio-inicio { color: var(--color-refrigerio-inicio); }
+    .refrigerio-fin { color: var(--color-refrigerio-fin); }
+    .error { color: var(--color-error); }
   </style>
 </head>
 <body>
@@ -108,17 +112,20 @@
   <div class="container">
     <h2>Registro de Asistencia</h2>
     <input type="text" id="dni" placeholder="Ingresa tu DNI">
-    <button id="btnGuardar">Guardar</button>
+    <div class="botones">
+      <button class="ingreso-btn" onclick="registrar('Ingreso')">Ingreso</button>
+      <button class="refrigerio-inicio-btn" onclick="registrar('Refrigerio Inicio')">Inicio Refrigerio</button>
+      <button class="refrigerio-fin-btn" onclick="registrar('Refrigerio Fin')">Fin Refrigerio</button>
+      <button class="salida-btn" onclick="registrar('Salida')">Salida</button>
+    </div>
     <div class="mensaje" id="mensaje"></div>
   </div>
 
   <script>
-    const registros = {};
     const dniInput = document.getElementById('dni');
     const mensajeDiv = document.getElementById('mensaje');
-    const btnGuardar = document.getElementById('btnGuardar');
 
-    btnGuardar.addEventListener('click', async () => {
+    async function registrar(tipo) {
       const dni = dniInput.value.trim();
       if (!dni) {
         alert("Por favor ingresa un DNI válido.");
@@ -128,51 +135,27 @@
       const ahora = new Date();
       const fecha = ahora.toLocaleDateString();
       const hora = ahora.toLocaleTimeString();
-      const clave = `${dni}-${fecha}`;
 
-      registros[clave] = (registros[clave] || 0) + 1;
-
-      let tipo = '';
-      let clase = '';
-
-      switch (registros[clave]) {
-        case 1:
-          tipo = 'Ingreso';
-          clase = 'ingreso';
-          break;
-        case 2:
-          tipo = 'Salida';
-          clase = 'salida';
-          break;
-        default:
-          tipo = 'Error: este DNI ya está registrado en el día';
-          clase = 'error';
-      }
-
-      const mensaje = registros[clave] <= 2
-        ? `Se registró el DNI ${dni} a las ${fecha} ${hora} (${tipo})`
-        : tipo;
+      const mensaje = `Se registró el DNI ${dni} a las ${fecha} ${hora} (${tipo})`;
+      const clase = tipo.toLowerCase().replace(" ", "-");
 
       mensajeDiv.textContent = mensaje;
       mensajeDiv.className = `mensaje ${clase}`;
       dniInput.value = '';
 
-      // Enviar a Google Sheets si es ingreso o salida
-      if (registros[clave] <= 2) {
-        const url = "https://script.google.com/macros/s/AKfycbz_XUr0fFGepeEW_h2DRYhXv1u4I_3xd6PCSbeURvSJVXa9GoY-KAf0FVf6j3tIIGmR/exec";
-        const formData = new FormData();
-        formData.append("fecha", fecha);
-        formData.append("hora", hora);
-        formData.append("dni", dni);
-        formData.append("tipo", tipo);
+      const url = "https://script.google.com/macros/s/AKfycbz_XUr0fFGepeEW_h2DRYhXv1u4I_3xd6PCSbeURvSJVXa9GoY-KAf0FVf6j3tIIGmR/exec";
+      const formData = new FormData();
+      formData.append("fecha", fecha);
+      formData.append("hora", hora);
+      formData.append("dni", dni);
+      formData.append("tipo", tipo);
 
-        try {
-          await fetch(url, { method: "POST", body: formData });
-        } catch (error) {
-          console.error("Error al guardar en Sheets:", error);
-        }
+      try {
+        await fetch(url, { method: "POST", body: formData });
+      } catch (error) {
+        console.error("Error al guardar en Sheets:", error);
       }
-    });
+    }
   </script>
 </body>
 </html>
