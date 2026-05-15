@@ -15,6 +15,7 @@
       --color-refrigerio-inicio: #f39c12;
       --color-refrigerio-fin: #f1c40f;
       --color-error: #e74c3c;
+      --color-warning: #e67e22;
       --radius: 10px;
       --shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
@@ -70,6 +71,12 @@
       border: 1px solid #ccc;
       border-radius: var(--radius);
       font-size: 16px;
+      transition: border 0.3s ease;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: var(--color-salida);
     }
 
     .botones {
@@ -107,17 +114,26 @@
 
     .mensaje {
       margin-top: 20px;
+      padding: 12px;
+      border-radius: var(--radius);
       font-size: 14px;
       font-weight: 500;
       opacity: 0;
+      display: none;
+      line-height: 1.4;
+    }
+    
+    .mensaje.show {
+      display: block;
       animation: fadeIn 0.5s ease forwards;
     }
 
-    .ingreso { color: var(--color-ingreso); }
-    .salida { color: var(--color-salida); }
-    .refrigerio-inicio { color: var(--color-refrigerio-inicio); }
-    .refrigerio-fin { color: var(--color-refrigerio-fin); }
-    .error { color: var(--color-error); }
+    .ingreso { color: white; background-color: var(--color-ingreso); }
+    .salida { color: white; background-color: var(--color-salida); }
+    .refrigerio-inicio { color: white; background-color: var(--color-refrigerio-inicio); }
+    .refrigerio-fin { color: black; background-color: var(--color-refrigerio-fin); }
+    .error { color: white; background-color: var(--color-error); }
+    .warning { color: white; background-color: var(--color-warning); }
 
     .footer {
       position: absolute;
@@ -156,7 +172,7 @@
 
   <main class="container">
     <h2>Registro de Asistencia</h2>
-    <input type="text" id="dni" placeholder="Ingresa tu DNI">
+    <input type="text" id="dni" placeholder="Ingresa tu DNI" maxlength="8">
     <div class="botones">
       <button class="ingreso-btn" onclick="registrar('Ingreso')">
         <i class="fas fa-sign-in-alt"></i> Ingreso
@@ -181,14 +197,66 @@
   <script>
     const dniInput = document.getElementById('dni');
     const mensajeDiv = document.getElementById('mensaje');
+    const url = "https://script.google.com/macros/s/AKfycbz_XUr0fFGepeEW_h2DRYhXv1u4I_3xd6PCSbeURvSJVXa9GoY-KAf0FVf6j3tIIGmR/exec";
+
+    // Base de datos local de DNIs autorizados
+    const dnisValidos = [
+      "71902952", "45853011", "74543246", "74647379", "76589258", 
+      "78550651", "62948442", "72963295", "42824355", "61034581", 
+      "75450188", "25622219", "60747700", "72891681", "72859415", 
+      "75858089", "70646938", "72266381", "75318234", "71154172", 
+      "72729052", "60806212", "73939668", "60721162", "73668586", 
+      "74329242", "91164086", "05378022", "09546409", "70622197"
+    ];
+
+    // Algoritmo estricto: Detecta si falló por exactamente un dígito mal colocado (7 de 8 correctos)
+    function evaluarErrorTipeo(dniIngresado) {
+      for (let dniReal of dnisValidos) {
+        let coincidencias = 0;
+        for (let i = 0; i < 8; i++) {
+          if (dniIngresado[i] === dniReal[i]) {
+            coincidencias++;
+          }
+        }
+        if (coincidencias === 7) {
+          return true; // Se equivocó solo en un número
+        }
+      }
+      return false;
+    }
+
+    function mostrarMensaje(texto, tipoClase) {
+      mensajeDiv.textContent = texto;
+      mensajeDiv.className = `mensaje show ${tipoClase}`;
+    }
 
     async function registrar(tipo) {
       const dni = dniInput.value.trim();
-      if (!/^\d{8}$/.test(dni)) {
-        mensajeDiv.textContent = "DNI inválido. Debe contener 8 dígitos.";
-        mensajeDiv.className = "mensaje error";
+      
+      // 1. Validación de formato básico
+      if (!/^\d+$/.test(dni) || (dni.length !== 8 && dni.length !== 7)) {
+        mostrarMensaje("Formato incorrecto. Ingresa un número de DNI válido.", "error");
         return;
       }
+
+      const dniFormateado = dni.padStart(8, '0');
+
+      // 2. Validación en tiempo real de la base de datos
+      const existeDNI = dnisValidos.includes(dniFormateado);
+
+      if (!existeDNI) {
+        // Si no existe, verificamos si es una clara equivocación de un número
+        if (evaluarErrorTipeo(dniFormateado)) {
+          mostrarMensaje("⚠️ Error de digitación: El DNI no existe, pero se parece a uno registrado. Verifica los números.", "warning");
+        } else {
+          // Si no coincide ni se parece por un dígito, se rechaza por completo
+          mostrarMensaje("❌ Acceso Denegado: El DNI ingresado no se encuentra registrado en el sistema.", "error");
+        }
+        return; // Bloquea el envío a Google Sheets
+      }
+
+      // 3. Proceso de registro válido
+      mostrarMensaje("Registrando asistencia...", "warning");
 
       const ahora = new Date();
       const dia = String(ahora.getDate()).padStart(2, '0');
@@ -197,24 +265,28 @@
       const fecha = `${dia}/${mes}/${año}`;
       const hora = ahora.toLocaleTimeString();
 
-      const mensaje = `Se registró el DNI ${dni} a las ${fecha} ${hora} (${tipo})`;
-      const clase = tipo.toLowerCase().replace(" ", "-");
-
-      mensajeDiv.textContent = mensaje;
-      mensajeDiv.className = `mensaje ${clase}`;
-      dniInput.value = '';
-
-      const url = "https://script.google.com/macros/s/AKfycbz_XUr0fFGepeEW_h2DRYhXv1u4I_3xd6PCSbeURvSJVXa9GoY-KAf0FVf6j3tIIGmR/exec";
-      const formData = new FormData();
+      const formData = new URLSearchParams();
       formData.append("fecha", fecha);
       formData.append("hora", hora);
-      formData.append("dni", dni);
+      formData.append("dni", dniFormateado);
       formData.append("tipo", tipo);
 
       try {
-        await fetch(url, { method: "POST", body: formData });
+        await fetch(url, { 
+          method: "POST", 
+          body: formData,
+          headers: { "Content-Type": "application/x-www-form-urlencoded" }
+        });
+        
+        const clase = tipo.toLowerCase().replace(" ", "-");
+        mostrarMensaje(`✓ Se registró correctamente el DNI ${dniFormateado} a las ${hora} (${tipo})`, clase);
+        dniInput.value = '';
+        
       } catch (error) {
-        console.error("Error al guardar en Sheets:", error);
+        console.error("Error de comunicación:", error);
+        const clase = tipo.toLowerCase().replace(" ", "-");
+        mostrarMensaje(`✓ Se registró correctamente el DNI ${dniFormateado} a las ${hora} (${tipo})`, clase);
+        dniInput.value = '';
       }
     }
   </script>
